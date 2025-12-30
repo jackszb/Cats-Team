@@ -1,0 +1,40 @@
+name: Update Ad Rule Domains
+
+on:
+  schedule:
+    - cron: '0 0 * * 0'  # 每周更新
+  workflow_dispatch:  # 支持手动触发
+
+jobs:
+  update_domains:
+    runs-on: ubuntu-latest
+
+    steps:
+    - name: Checkout Repository
+      uses: actions/checkout@v3
+
+    - name: Download Ad Rule File
+      run: |
+        curl -o jiekouAD.txt https://raw.githubusercontent.com/Cats-Team/AdRules/script/rules/jiekouAD.txt
+
+    - name: Extract Domains
+      run: |
+        # 提取标准域名
+        grep -oP '(?<=\|\|)([a-zA-Z0-9.-]+)(?=\^)' jiekouAD.txt > jiekouAD-domains.txt
+
+        # 提取特殊格式域名，去除通配符和连字符
+        grep -oP '(?<=\*-)([a-zA-Z0-9.-]+)(?=\*)' jiekouAD.txt | sed 's/*//g' | sed 's/-//g' >> jiekouAD-domains.txt
+
+    - name: Clean and Sort Domains
+      run: |
+        # 去重、排序并删除空行
+        sort jiekouAD-domains.txt | uniq | sed '/^\s*$/d' > jiekouAD-domains-cleaned.txt
+
+    - name: Commit and Push Updated Domains
+      run: |
+        git config --global user.email "github-actions@github.com"
+        git config --global user.name "GitHub Actions"
+
+        git add jiekouAD-domains-cleaned.txt
+        git commit -m "Auto update Ad Rule Domains" || echo "No changes"
+        git push
